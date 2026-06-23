@@ -1066,7 +1066,7 @@ function handleFiles(files) {
 }
 
 // ── FORM VALIDATION + SUBMIT ──
-document.getElementById('intake-form').addEventListener('submit', function(e) {
+document.getElementById('intake-form').addEventListener('submit', async function(e) {
   e.preventDefault();
   let valid = true;
 
@@ -1094,7 +1094,7 @@ document.getElementById('intake-form').addEventListener('submit', function(e) {
 
   if (!valid) return;
 
- // Submit to Supabase via serverless function
+  // Submit to Supabase via serverless function
   const btn = document.getElementById('submit-btn');
   btn.disabled = true;
   btn.textContent = 'Submitting…';
@@ -1117,7 +1117,7 @@ document.getElementById('intake-form').addEventListener('submit', function(e) {
     feeling:        document.getElementById('feeling').value.trim(),
     platforms:      platforms,
     website_status: websiteStatus ? websiteStatus.value : null,
-    email:          document.getElementById('email').value.trim(),
+    email:          email,
     phone:          document.getElementById('phone').value.trim()
   };
 
