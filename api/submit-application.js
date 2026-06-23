@@ -17,13 +17,14 @@ export default async function handler(req, res) {
 
     const body = req.body;
 
+    // Insert and return the new row ID
     const response = await fetch(`${supabaseUrl}/rest/v1/artisan_applications`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'apikey': supabaseKey,
         'Authorization': `Bearer ${supabaseKey}`,
-        'Prefer': 'return=minimal'
+        'Prefer': 'return=representation'
       },
       body: JSON.stringify({
         brand_name:     body.brand_name     || null,
@@ -54,7 +55,13 @@ export default async function handler(req, res) {
       });
     }
 
-    return res.status(200).json({ success: true });
+    const inserted = JSON.parse(responseText);
+    const application_id = inserted[0].id;
+
+    return res.status(200).json({ 
+      success: true,
+      application_id
+    });
 
   } catch (err) {
     return res.status(500).json({
