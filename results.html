@@ -858,6 +858,33 @@ const applicationId = params.get('id');
 if (!applicationId) {
   showError();
 } else {
+  triggerAndPoll();
+}
+
+// ── Trigger pipeline then poll for results ──
+async function triggerAndPoll() {
+  try {
+    // First check if assets already exist (e.g. page refresh)
+    const existing = await fetch(`/api/get-assets?id=${applicationId}`);
+    if (existing.ok) {
+      const data = await existing.json();
+      if (data && data.assets) {
+        renderResults(data.assets);
+        return;
+      }
+    }
+  } catch(e) {}
+
+  // Trigger the pipeline
+  try {
+    fetch('/api/generate-assets', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ application_id: parseInt(applicationId) })
+    });
+  } catch(e) {}
+
+  // Start polling regardless
   startPolling();
 }
 
@@ -890,7 +917,7 @@ const stepInterval = setInterval(() => {
 
 // ── Poll Supabase for completed assets ──
 let pollCount = 0;
-const maxPolls = 30;
+const maxPolls = 40;
 
 function startPolling() {
   const poll = setInterval(async () => {
