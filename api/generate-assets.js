@@ -33,7 +33,7 @@ export default async function handler(req, res) {
     }
     const app = apps[0];
 
-    // ── Helper: call Claude API ──
+    // ── Helper: call Claude API and strip markdown fences ──
     async function callClaude(systemPrompt, userPrompt) {
       const response = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
@@ -50,7 +50,9 @@ export default async function handler(req, res) {
         })
       });
       const data = await response.json();
-      return data.content[0].text;
+      const raw = data.content[0].text;
+      // Strip markdown code fences if present
+      return raw.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/```\s*$/i, '').trim();
     }
 
     // ── Build base context from intake form ──
@@ -70,7 +72,8 @@ Current platforms: ${app.platforms || 'none'}
     const brandVoice = await callClaude(
       `You are a brand strategist specializing in handmade craft businesses. 
        Extract and articulate the core brand voice for this artisan. 
-       Be specific — no generic filler. Every word should feel true to THIS maker.`,
+       Be specific — no generic filler. Every word should feel true to THIS maker.
+       Always respond with pure JSON only. No markdown. No code fences. No explanation.`,
       `Based on this artisan's intake information, create a Brand Voice Document:
 
 ${artisanContext}
@@ -84,7 +87,7 @@ Return a JSON object with these exact keys:
   "words_to_avoid": ["3-5 words or phrases that would feel wrong for this brand"],
   "content_themes": ["4-5 recurring themes that should run through all content"]
 }
-Return only valid JSON, no markdown, no explanation.`
+Return only valid JSON. No markdown. No code fences. No explanation.`
     );
 
     const brandVoiceData = JSON.parse(brandVoice);
@@ -93,24 +96,23 @@ Return only valid JSON, no markdown, no explanation.`
     const brandNarrative = await callClaude(
       `You are a brand storyteller. Using the brand voice as your guide, 
        craft the foundational story of this maker. This narrative will underpin 
-       ALL future content — social posts, emails, website copy. 
-       It must feel personal, specific, and emotionally resonant.`,
+       ALL future content. It must feel personal, specific, and emotionally resonant.
+       Always respond with pure JSON only. No markdown. No code fences. No explanation.`,
       `Brand Voice Document:
 ${JSON.stringify(brandVoiceData, null, 2)}
 
 Artisan context:
 ${artisanContext}
 
-Write a Brand Narrative Arc with these sections:
-1. THE ORIGIN STORY (2-3 sentences): Why does ${app.artisan_name} make what they make? What drove them to it?
-2. THE CRAFT (2-3 sentences): What is distinctive about how they work and what they create?
-3. THE CUSTOMER (2 sentences): Who is this for, and why does it matter to them?
-4. THE PROMISE (1 sentence): What does ${app.brand_name} stand for?
-5. THE CAMPAIGN HOOK (1 sentence): A memorable line that could anchor 90 days of content.
-
-Write in second person as if briefing a content team. Be specific, not generic.
-Return as JSON: { "origin": "", "craft": "", "customer": "", "promise": "", "campaign_hook": "" }
-Return only valid JSON, no markdown.`
+Write a Brand Narrative Arc. Return as JSON:
+{
+  "origin": "2-3 sentences: Why does ${app.artisan_name} make what they make?",
+  "craft": "2-3 sentences: What is distinctive about how they work and what they create?",
+  "customer": "2 sentences: Who is this for, and why does it matter to them?",
+  "promise": "1 sentence: What does ${app.brand_name} stand for?",
+  "campaign_hook": "1 memorable sentence that could anchor 90 days of content"
+}
+Return only valid JSON. No markdown. No code fences. No explanation.`
     );
 
     const narrativeData = JSON.parse(brandNarrative);
@@ -118,8 +120,9 @@ Return only valid JSON, no markdown.`
     // ── PROMPT 3: Website Copy ──
     const websiteCopy = await callClaude(
       `You are a conversion copywriter who specializes in handmade craft brands. 
-       Write website copy that sounds like the maker wrote it on their best day — 
-       warm, specific, and real. No corporate language. No clichés.`,
+       Write website copy that sounds like the maker wrote it on their best day.
+       Warm, specific, and real. No corporate language. No clichés.
+       Always respond with pure JSON only. No markdown. No code fences. No explanation.`,
       `Brand Voice: ${JSON.stringify(brandVoiceData)}
 Brand Narrative: ${JSON.stringify(narrativeData)}
 Artisan context: ${artisanContext}
@@ -142,7 +145,7 @@ Write complete website copy. Return as JSON:
     {"question": "...", "answer": "..."}
   ]
 }
-Return only valid JSON, no markdown.`
+Return only valid JSON. No markdown. No code fences. No explanation.`
     );
 
     const websiteData = JSON.parse(websiteCopy);
@@ -150,32 +153,33 @@ Return only valid JSON, no markdown.`
     // ── PROMPT 4: Product Description Template ──
     const productCopy = await callClaude(
       `You are a product copywriter for handmade craft brands. 
-       Write descriptions that are sensory, specific, and make the reader 
-       feel something — not just list features.`,
+       Write descriptions that are sensory, specific, and make the reader feel something.
+       Always respond with pure JSON only. No markdown. No code fences. No explanation.`,
       `Brand Voice: ${JSON.stringify(brandVoiceData)}
 Artisan context: ${artisanContext}
 
 Create a product description system. Return as JSON:
 {
-  "template": "A reusable fill-in-the-blank template for product descriptions. Use [PRODUCT_NAME], [KEY_DETAIL], [MATERIAL], [DIMENSION] as placeholders.",
+  "template": "A reusable fill-in-the-blank template. Use [PRODUCT_NAME], [KEY_DETAIL], [MATERIAL], [DIMENSION] as placeholders.",
   "sample_descriptions": [
     "Sample description 1 — a flagship piece (3-4 sentences)",
-    "Sample description 2 — a gift-friendly piece (3-4 sentences)", 
+    "Sample description 2 — a gift-friendly piece (3-4 sentences)",
     "Sample description 3 — a best-seller piece (3-4 sentences)"
   ],
   "seo_keywords": ["8-10 relevant search keywords for this type of craft"]
 }
-Return only valid JSON, no markdown.`
+Return only valid JSON. No markdown. No code fences. No explanation.`
     );
 
     const productData = JSON.parse(productCopy);
 
     // ── PROMPT 5: 90-Day Campaign Brief ──
     const campaignBrief = await callClaude(
-      `You are a digital marketing strategist specializing in craft and maker brands.
+      `You are a digital marketing strategist for craft and maker brands.
        You believe in traffic-driven commerce: build an audience first, 
-       let the website do the selling. Content should be about the MAKER and their WORLD,
-       not individual products.`,
+       let the website do the selling. Content is about the MAKER and their WORLD,
+       not individual products.
+       Always respond with pure JSON only. No markdown. No code fences. No explanation.`,
       `Brand Voice: ${JSON.stringify(brandVoiceData)}
 Brand Narrative: ${JSON.stringify(narrativeData)}
 Artisan context: ${artisanContext}
@@ -185,16 +189,16 @@ Create a 90-Day Brand Awareness Campaign Brief. Return as JSON:
   "campaign_theme": "A memorable 3-6 word campaign theme",
   "campaign_goal": "One sentence: what does success look like after 90 days?",
   "content_pillars": [
-    {"pillar": "Pillar name", "description": "What this pillar covers and why", "example_post": "An example post idea"},
-    {"pillar": "Pillar name", "description": "What this pillar covers and why", "example_post": "An example post idea"},
-    {"pillar": "Pillar name", "description": "What this pillar covers and why", "example_post": "An example post idea"}
+    {"pillar": "Pillar name", "description": "What this covers and why", "example_post": "An example post idea"},
+    {"pillar": "Pillar name", "description": "What this covers and why", "example_post": "An example post idea"},
+    {"pillar": "Pillar name", "description": "What this covers and why", "example_post": "An example post idea"}
   ],
-  "posting_cadence": "Recommended posts per week and best days/times for this audience",
+  "posting_cadence": "Recommended posts per week and best days/times",
   "first_week_plan": ["Day 1 post idea", "Day 3 post idea", "Day 5 post idea"],
-  "channels": ["Ranked list of channels to prioritize for this brand and audience"],
+  "channels": ["Ranked list of channels to prioritize"],
   "metrics_to_watch": ["3-4 metrics that matter most for this campaign phase"]
 }
-Return only valid JSON, no markdown.`
+Return only valid JSON. No markdown. No code fences. No explanation.`
     );
 
     const campaignData = JSON.parse(campaignBrief);
@@ -202,17 +206,16 @@ Return only valid JSON, no markdown.`
     // ── PROMPT 6: 20 Seed Social Posts ──
     const socialPosts = await callClaude(
       `You are a social media content writer for handmade craft brands.
-       Write posts that feel HUMAN — like the maker posted them on a good day.
-       No corporate language, no hollow hashtag bait. 
-       Focus on brand story, maker process, and authentic moments.
-       Do NOT write product-listing posts. Write brand-building posts.`,
+       Write posts that feel human — like the maker posted them on a good day.
+       No corporate language. Focus on brand story, maker process, authentic moments.
+       Do NOT write product-listing posts. Write brand-building posts.
+       Always respond with pure JSON only. No markdown. No code fences. No explanation.`,
       `Brand Voice: ${JSON.stringify(brandVoiceData)}
 Campaign Brief: ${JSON.stringify(campaignData)}
 Artisan context: ${artisanContext}
 
 Write 20 Instagram/Pinterest captions for the first 90-day campaign.
-Mix across: behind-the-scenes process, maker story, inspiration/aesthetic, 
-customer connection, craft philosophy. No direct "buy this" posts.
+Mix across: behind-the-scenes process, maker story, inspiration, customer connection, craft philosophy.
 
 Return as JSON:
 {
@@ -222,11 +225,11 @@ Return as JSON:
       "pillar": "which content pillar this belongs to",
       "caption": "Full caption text",
       "hashtags": "#tag1 #tag2 #tag3 (8-12 relevant hashtags)",
-      "visual_direction": "Brief note on what photo/video would work best"
+      "visual_direction": "Brief note on what photo or video would work best"
     }
   ]
 }
-Return only valid JSON, no markdown.`
+Return only valid JSON. No markdown. No code fences. No explanation.`
     );
 
     const socialData = JSON.parse(socialPosts);
@@ -234,14 +237,14 @@ Return only valid JSON, no markdown.`
     // ── PROMPT 7: 4-Email Welcome Sequence ──
     const emailSequence = await callClaude(
       `You are an email marketing specialist for handmade craft brands.
-       Write emails that feel personal — like a letter from the maker, 
-       not a marketing blast. Warm, specific, story-driven.
-       Each email has one job. Don't try to do too much.`,
+       Write emails that feel personal — like a letter from the maker, not a marketing blast.
+       Warm, specific, story-driven. Each email has one job.
+       Always respond with pure JSON only. No markdown. No code fences. No explanation.`,
       `Brand Voice: ${JSON.stringify(brandVoiceData)}
 Brand Narrative: ${JSON.stringify(narrativeData)}
 Artisan context: ${artisanContext}
 
-Write a 4-email welcome sequence for new subscribers. Return as JSON:
+Write a 4-email welcome sequence. Return as JSON:
 {
   "emails": [
     {
@@ -274,7 +277,7 @@ Write a 4-email welcome sequence for new subscribers. Return as JSON:
     }
   ]
 }
-Return only valid JSON, no markdown.`
+Return only valid JSON. No markdown. No code fences. No explanation.`
     );
 
     const emailData = JSON.parse(emailSequence);
@@ -294,7 +297,7 @@ Return only valid JSON, no markdown.`
       email_sequence: emailData
     };
 
-    // ── Save assets to Supabase ──
+    // ── Save assets to Supabase artisan_assets table ──
     await fetch(`${supabaseUrl}/rest/v1/artisan_assets`, {
       method: 'POST',
       headers: {
@@ -309,7 +312,7 @@ Return only valid JSON, no markdown.`
       })
     });
 
-    // ── Update application status to 'assets_generated' ──
+    // ── Update application status ──
     await fetch(
       `${supabaseUrl}/rest/v1/artisan_applications?id=eq.${application_id}`,
       {
@@ -323,10 +326,10 @@ Return only valid JSON, no markdown.`
       }
     );
 
-    return res.status(200).json({ 
-      success: true, 
+    return res.status(200).json({
+      success: true,
       application_id,
-      assets: allAssets 
+      assets: allAssets
     });
 
   } catch (err) {
