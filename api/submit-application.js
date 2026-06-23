@@ -9,12 +9,26 @@ export default async function handler(req) {
   }
 
   try {
-    const body = await req.json();
-
     const supabaseUrl = process.env.SUPABASE_URL;
     const supabaseKey = process.env.SUPABASE_ANON_KEY;
 
-    const response = await fetch(`${supabaseUrl}/rest/v1/artisan_applications`, {
+    // Debug: check if env vars are present
+    if (!supabaseUrl || !supabaseKey) {
+      return new Response(JSON.stringify({ 
+        error: 'Missing environment variables',
+        hasUrl: !!supabaseUrl,
+        hasKey: !!supabaseKey
+      }), {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+
+    const body = await req.json();
+
+    const insertUrl = `${supabaseUrl}/rest/v1/artisan_applications`;
+
+    const response = await fetch(insertUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -41,9 +55,14 @@ export default async function handler(req) {
       })
     });
 
+    const responseText = await response.text();
+
     if (!response.ok) {
-      const error = await response.text();
-      return new Response(JSON.stringify({ error }), {
+      return new Response(JSON.stringify({ 
+        error: 'Supabase insert failed',
+        status: response.status,
+        detail: responseText
+      }), {
         status: 500,
         headers: { 'Content-Type': 'application/json' }
       });
@@ -55,7 +74,11 @@ export default async function handler(req) {
     });
 
   } catch (err) {
-    return new Response(JSON.stringify({ error: err.message }), {
+    return new Response(JSON.stringify({ 
+      error: 'Exception caught',
+      message: err.message,
+      stack: err.stack
+    }), {
       status: 500,
       headers: { 'Content-Type': 'application/json' }
     });
