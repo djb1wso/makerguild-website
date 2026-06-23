@@ -1129,9 +1129,10 @@ document.getElementById('intake-form').addEventListener('submit', async function
     });
 
     if (response.ok) {
-      document.getElementById('intake-form').style.display = 'none';
-      document.getElementById('success-message').style.display = 'block';
-      document.getElementById('success-message').scrollIntoView({ behavior: 'smooth' });
+      const data = await response.json();
+      const applicationId = data.application_id;
+      // Redirect to results page with application ID
+      window.location.href = `/results.html?id=${applicationId}`;
     } else {
       btn.disabled = false;
       btn.textContent = 'Submit my application →';
